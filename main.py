@@ -48,6 +48,8 @@ async def main():
         LOGGER.info("All services are running. Press Ctrl+C to stop.")
         # Keep the main coroutine alive to handle signals
         await asyncio.Event().wait()
+    except asyncio.CancelledError:
+        LOGGER.info("Main task cancelled during shutdown.")
     except Exception as e:
         LOGGER.error(f"An error occurred during startup or runtime: {e}", exc_info=True)
 
@@ -58,15 +60,17 @@ async def shutdown(sig):
     """
     LOGGER.info(f"Received exit signal {sig.name}... Shutting down.")
 
-    # Create a shutdown task to prevent it from being cancelled
-    shutdown_task = asyncio.create_task(_perform_shutdown())
+    current_task = asyncio.current_task()
+    tasks = [task for task in asyncio.all_tasks() if task is not current_task]
 
-    # Wait for the shutdown to complete
-    await shutdown_task
+    if tasks:
+        LOGGER.info(f"Cancelling {len(tasks)} outstanding tasks...")
+        for task in tasks:
+            task.cancel()
 
+        await asyncio.gather(*tasks, return_exceptions=True)
+        LOGGER.info("All outstanding tasks have been cancelled.")
 
-async def _perform_shutdown():
-    """Helper function to perform the actual shutdown operations."""
     LOGGER.info("Stopping user clients...")
     await user_client_manager.stop_all()
 
@@ -77,15 +81,15 @@ async def _perform_shutdown():
     db_client.close()
 
     LOGGER.info("Shutdown complete.")
-    
+
     # Gracefully stop the event loop
-    loop = asyncio.get_running_loop()
-    loop.stop()
+    # loop = asyncio.get_running_loop()
+    # if loop.is_running():
+    #     loop.stop()
 
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
 
     # Register signal handlers for graceful shutdown
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -93,16 +97,16 @@ if __name__ == "__main__":
 
     try:
         LOGGER.info("Application starting up.")
-        asyncio.run(main())
-        loop.run_forever()  # Run the event loop until stop() is called
+        loop.run_until_complete(main())
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        LOGGER.info("Application shutdown request received.")
     finally:
         LOGGER.info("Event loop stopped. Cleaning up...")
-        # Ensure all tasks are cancelled before closing the loop
         tasks = asyncio.all_tasks(loop=loop)
-        for task in tasks:
-            task.cancel()
-        
-        # Gather all tasks to allow them to process cancellation
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-        loop.close()
+        if tasks:
+            LOGGER.info(f"Waiting for {len(tasks)} tasks to complete...")
+            loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+
+        if not loop.is_closed():
+            loop.close()
         LOGGER.info("Application shut down gracefully.")
