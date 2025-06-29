@@ -1,5 +1,6 @@
 import logging
 from pyrogram import Client, filters, enums
+from pyrogram.handlers import MessageHandler
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from database.manager import get_forwarding_rules_for_user
 from bot.main import bot_client
@@ -7,16 +8,16 @@ from bot.main import bot_client
 logger = logging.getLogger(__name__)
 
 # A broad filter to capture all relevant messages for forwarding.
-# Includes private, group, and channel messages. Excludes messages sent by the user client itself or by other bots.
-FORWARD_FILTER = (filters.private | filters.group | filters.channel) & ~filters.me & ~filters.bot
+# Includes private messages and group messages where the user is mentioned. Excludes messages sent by the user client itself or by other bots.
+FORWARD_FILTER = (filters.private | (filters.group & filters.mentioned)) & ~filters.me & ~filters.bot
 
-async def _get_message_details(message: Message) -> (str, str):
+async def _get_message_details(message: Message) -> (str, str, bool):
     """
-    Helper function to get a descriptive content type and details from a message,
-    based on the logic from the provided ubot_plugin.py.
+    Helper function to get a descriptive content type, details, and media status from a message.
     """
     content_type = "Unknown Message Type"
     content_detail = ""
+    is_media = False
 
     if message.text:
         content_type = "Text Message"
@@ -25,31 +26,55 @@ async def _get_message_details(message: Message) -> (str, str):
         content_type = "Photo"
         if message.caption:
             content_detail = f"<b>Caption:</b> {message.caption}"
+        is_media = True
+    elif message.video_note:
+        content_type = "Video Note"
+        is_media = True
     elif message.video:
         content_type = "Video"
         if message.video.file_name:
             content_detail = f"<b>File:</b> {message.video.file_name}"
         if message.caption:
             content_detail += f"\n<b>Caption:</b> {message.caption}"
+        is_media = True
     elif message.document:
         content_type = "File"
         if message.document.file_name:
             content_detail = f"<b>File:</b> {message.document.file_name}"
         if message.caption:
             content_detail += f"\n<b>Caption:</b> {message.caption}"
+        is_media = True
     elif message.audio:
         content_type = "Audio"
         if message.audio.file_name:
             content_detail = f"<b>File:</b> {message.audio.file_name}"
+        is_media = True
     elif message.voice:
         content_type = "Voice Message"
+        is_media = True
     elif message.sticker:
         content_type = "Sticker"
         if message.sticker.emoji:
             content_detail = f"<b>Emoji:</b> {message.sticker.emoji}"
-    # Add other types as needed from the example
+        is_media = True
+    elif message.animation:
+        content_type = "Animation"
+        if message.animation.file_name:
+            content_detail = f"<b>File:</b> {message.animation.file_name}"
+        is_media = True
+    elif message.contact:
+        content_type = "Contact"
+        content_detail = f"<b>Name:</b> {message.contact.first_name}"
+        if message.contact.phone_number:
+            content_detail += f"\n<b>Phone:</b> {message.contact.phone_number}"
+    elif message.location:
+        content_type = "Location"
+        content_detail = f"<b>Longitude:</b> {message.location.longitude}\n<b>Latitude:</b> {message.location.latitude}"
+    elif message.venue:
+        content_type = "Venue"
+        content_detail = f"<b>Title:</b> {message.venue.title}\n<b>Address:</b> {message.venue.address}"
     
-    return content_type, content_detail.strip()
+    return content_type, content_detail.strip(), is_media
 
 async def _get_source_details(message: Message) -> str:
     """Gets a descriptive string for the source of a message."""
@@ -61,7 +86,6 @@ async def _get_source_details(message: Message) -> str:
         return f"the channel <b>{message.chat.title}</b>"
     return "an unknown chat"
 
-@Client.on_message(FORWARD_FILTER, group=1)
 async def forwarding_handler(client: Client, message: Message):
     """
     Handles all incoming messages for a user client, checks against forwarding rules,
@@ -103,6 +127,7 @@ async def forwarding_handler(client: Client, message: Message):
         try:
             notification_text = ""
             reply_markup = None
+            should_forward = False
             
             # 1. Handle mentions specifically
             if message.mentioned and message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
@@ -117,10 +142,12 @@ async def forwarding_handler(client: Client, message: Message):
                     reply_markup = InlineKeyboardMarkup(
                         [[InlineKeyboardButton(text="💬 View Message", url=message.link)]]
                     )
+                # Group mentions are only notified, not forwarded.
+                should_forward = False
 
             # 2. Handle other messages
             else:
-                content_type, content_detail = await _get_message_details(message)
+                content_type, content_detail, is_media = await _get_message_details(message)
                 source_details = await _get_source_details(message)
                 notification_text = (
                     f"🔔 New {content_type} from {source_details}\n\n"
@@ -132,8 +159,7 @@ async def forwarding_handler(client: Client, message: Message):
                 button_text = None
                 button_url = None
                 if message.chat.type == enums.ChatType.PRIVATE and message.from_user:
-                    button_text = "💬 Go to Chat"
-                    button_url = f"tg://user?id={message.from_user.id}"
+                    pass
                 elif message.link:
                     button_text = "💬 View Message"
                     button_url = message.link
@@ -142,6 +168,10 @@ async def forwarding_handler(client: Client, message: Message):
                     reply_markup = InlineKeyboardMarkup(
                         [[InlineKeyboardButton(text=button_text, url=button_url)]]
                     )
+                
+                # Only forward private messages that are media
+                if is_media:
+                    should_forward = True
 
             # Send the notification message via the BOT
             await bot_client.send_message(
@@ -151,13 +181,30 @@ async def forwarding_handler(client: Client, message: Message):
                 disable_web_page_preview=True,
             )
 
-            # Then, forward the original message(s) using the USER client
-            await message.forward(chat_id=dest_chat)
-            
-            logger.info(f"User client {user_id}: Successfully forwarded message {message.id} to {dest_chat}.")
-        
+            # Then, forward the original message(s) if needed
+            if should_forward:
+                forwarded = await message.forward(chat_id=bot_client.me.id,disable_notification=True)
+                if forwarded:
+                    await bot_client.send_message(
+                        chat_id=dest_chat,
+                        text=f"✅ 以上是转发的{content_type}",
+                        reply_markup=reply_markup,
+                        disable_web_page_preview=True,
+                    )
+                logger.info(f"User client {user_id}: Successfully forwarded message {message.id} to {dest_chat}.")
+            else:
+                logger.info(f"User client {user_id}: Sent notification for message {message.id} to {dest_chat} (no forward).")
+
         except Exception as e:
             logger.error(
-                f"User client {user_id}: Failed to forward message {message.id} to destination {dest_chat}. Error: {e}",
+                f"User client {user_id}: Failed to process message {message.id} for destination {dest_chat}. Error: {e}",
                 exc_info=True
             )
+
+def register_handlers(client: Client):
+    """
+    Registers all necessary handlers for a user client instance.
+    This approach is used instead of decorators to support multiple client instances.
+    """
+    client.add_handler(MessageHandler(forwarding_handler, FORWARD_FILTER), group=1)
+    logger.info("Registered user client message handlers.")

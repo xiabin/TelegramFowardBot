@@ -2,6 +2,7 @@ import asyncio
 import logging
 from pyrogram import Client
 from config import API_ID, API_HASH, PROXY
+from user_clients.handlers import register_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,6 @@ class UserClientManager:
                 "api_hash": API_HASH,
                 "session_string": session_string,
                 "in_memory": True,
-                "plugins": {
-                    "root": "user_clients.handlers"
-                }
             }
             if PROXY:
                 client_params["proxy"] = PROXY
@@ -42,6 +40,8 @@ class UserClientManager:
             client = Client(**client_params)
             
             await client.start()
+            register_handlers(client)
+
             me = await client.get_me()
             logger.info(f"Client for user {me.first_name} ({me.id}) started successfully.")
 

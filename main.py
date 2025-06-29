@@ -29,7 +29,7 @@ root_logger.setLevel(logging.INFO)
 root_logger.addHandler(file_handler)
 root_logger.addHandler(stream_handler)
 
-logging.getLogger("pyrogram").setLevel(logging.WARNING)  # Reduce pyrogram's verbosity
+logging.getLogger("pyrogram").setLevel(logging.INFO)  # Reduce pyrogram's verbosity
 LOGGER = logging.getLogger(__name__)
 
 

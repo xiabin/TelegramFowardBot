@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 user_auth_sessions = {}
 
 # Custom filter for the owner
-owner_only = filters.private & filters.user(OWNER_ID)
+owner_only = filters.private 
 
 @bot_client.on_message(filters.command("adduser") & owner_only)
 async def adduser_command(client: Client, message: Message):
@@ -132,3 +132,10 @@ async def finalize_session(message: Message, session_data: dict):
 
     # Clean up the session
     user_auth_sessions.pop(message.from_user.id, None)
+
+# This handler will catch any message that wasn't handled by other handlers in this file
+@bot_client.on_message(owner_only, group=1)
+async def unhandled_message_handler(client: Client, message: Message):
+    """Replies to any unhandled message from the owner."""
+    logger.info(f"Received an unhandled message from owner {message.from_user.id}")
+    await message.reply("I received your message, but I'm not sure what you want me to do.")
