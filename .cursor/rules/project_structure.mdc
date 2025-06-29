@@ -1,0 +1,30 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Project Structure Guide
+
+This project is a Telegram forwarding bot.
+
+- The main entry point is `[main.py](mdc:main.py)`.
+- The bot logic is located in the `bot/` directory. The main bot application is in `[bot/app.py](mdc:bot/app.py)`.
+- Handlers for different bot commands are in the `bot/handlers/` directory.
+- User client management is handled in the `user_clients/` directory.
+- Database interactions are managed by `[database/manager.py](mdc:database/manager.py)`.
+- Configuration is stored in `[config.py](mdc:config.py)`.
+
+# Python and Pyrogram Development Guidelines
+
+## General Python Style
+- Follow PEP 8 style guidelines for Python code.
+- Use type hints for function signatures.
+- Keep functions small and focused on a single task.
+- Use f-strings for string formatting.
+
+## Pyrogram Specifics
+- Use the `Client` object from `pyrogram` to interact with the Telegram API.
+- Handlers for incoming updates should be decorated with `@Client.on_message()` or other relevant decorators.
+- Refer to the official [Pyrogram documentation](https://docs.pyrogram.org/) for detailed API usage.
+- Ensure that sensitive information like `api_id` and `api_hash` are loaded from configuration files (e.g., `[config.py](mdc:config.py)`) and not hardcoded.
+- Asynchronous functions should be used for network operations to avoid blocking. `async` and `await` should be used appropriately.
