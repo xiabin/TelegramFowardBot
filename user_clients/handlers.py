@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Includes private messages and group messages where the user is mentioned. Excludes messages sent by the user client itself or by other bots.
 FORWARD_FILTER = (filters.private | (filters.group & filters.mentioned)) & ~filters.me & ~filters.bot
 
-async def _get_message_details(message: Message) -> (str, str, bool):
+async def _get_message_details(message: Message) -> (str, str, bool): # type: ignore
     """
     Helper function to get a descriptive content type, details, and media status from a message.
     """
@@ -21,11 +21,11 @@ async def _get_message_details(message: Message) -> (str, str, bool):
 
     if message.text:
         content_type = "文本消息"
-        content_detail = f"<b>Message:</b> {message.text[:200]}" # Limit length
+        content_detail = f"<b>文本:</b> {message.text[:200]}" # Limit length
     elif message.photo:
         content_type = "图片"
         if message.caption:
-            content_detail = f"<b>Caption:</b> {message.caption}"
+            content_detail = f"<b>说明:</b> {message.caption}"
         is_media = True
     elif message.video_note:
         content_type = "圆形视频"
@@ -33,21 +33,21 @@ async def _get_message_details(message: Message) -> (str, str, bool):
     elif message.video:
         content_type = "视频"
         if message.video.file_name:
-            content_detail = f"<b>File:</b> {message.video.file_name}"
+            content_detail = f"<b>文件名:</b> {message.video.file_name}"
         if message.caption:
-            content_detail += f"\n<b>Caption:</b> {message.caption}"
+            content_detail += f"\n<b>说明:</b> {message.caption}"
         is_media = True
     elif message.document:
         content_type = "文件"
         if message.document.file_name:
-            content_detail = f"<b>File:</b> {message.document.file_name}"
+            content_detail = f"<b>文件名:</b> {message.document.file_name}"
         if message.caption:
-            content_detail += f"\n<b>Caption:</b> {message.caption}"
+            content_detail += f"\n<b>说明:</b> {message.caption}"
         is_media = True
     elif message.audio:
         content_type = "音频"
         if message.audio.file_name:
-            content_detail = f"<b>File:</b> {message.audio.file_name}"
+            content_detail = f"<b>文件名:</b> {message.audio.file_name}"
         is_media = True
     elif message.voice:
         content_type = "语音消息"
@@ -55,24 +55,22 @@ async def _get_message_details(message: Message) -> (str, str, bool):
     elif message.sticker:
         content_type = "贴纸"
         if message.sticker.emoji:
-            content_detail = f"<b>Emoji:</b> {message.sticker.emoji}"
+            content_detail = f"<b>表情:</b> {message.sticker.emoji}"
         is_media = True
     elif message.animation:
         content_type = "动画"
         if message.animation.file_name:
-            content_detail = f"<b>File:</b> {message.animation.file_name}"
+            content_detail = f"<b>文件名:</b> {message.animation.file_name}"
         is_media = True
     elif message.contact:
         content_type = "联系人"
-        content_detail = f"<b>Name:</b> {message.contact.first_name}"
-        if message.contact.phone_number:
-            content_detail += f"\n<b>Phone:</b> {message.contact.phone_number}"
+        content_detail = f"<b>联系人:</b> {message.contact.first_name}"
     elif message.location:
         content_type = "位置"
-        content_detail = f"<b>Longitude:</b> {message.location.longitude}\n<b>Latitude:</b> {message.location.latitude}"
+        content_detail = f"<b>经度:</b> {message.location.longitude}\n<b>纬度:</b> {message.location.latitude}"
     elif message.venue:
         content_type = "地点"
-        content_detail = f"<b>Title:</b> {message.venue.title}\n<b>Address:</b> {message.venue.address}"
+        content_detail = f"<b>地点:</b> {message.venue.title}\n<b>地址:</b> {message.venue.address}"
     
     return content_type, content_detail.strip(), is_media
 
@@ -85,6 +83,7 @@ async def forwarding_handler(client: Client, message: Message):
     user_mention = message.from_user.mention if message.from_user else "未知"
     source_chat_id = message.chat.id
     logger.info(f"User client {user_id}: Received message {message.id} from chat {source_chat_id}.")
+    logger.info(f"User mention content: {repr(user_mention)}")
 
     try:
         rules = await get_forwarding_rules_for_user(user_id)
