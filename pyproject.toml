@@ -1,0 +1,23 @@
+[project]
+name = "TeleFwdBot"
+version = "0.1.0"
+description = "A Telegram message forwarding bot that manages multiple user accounts."
+authors = [{ name = "Your Name", email = "your@email.com" }]
+requires-python = ">=3.8"
+dependencies = [
+    "pyrogram",
+    "motor",
+    "apscheduler",
+    "python-dotenv",
+    "pytz",
+    "uvloop",
+    "tgcrypto>=1.2.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.uv]
+# You can add uv-specific configurations here if needed in the future. 
