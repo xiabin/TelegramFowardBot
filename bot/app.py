@@ -1,4 +1,5 @@
 from pyrogram import Client
+import uvloop
 
 from config import API_ID, API_HASH, BOT_TOKEN, PROXY
 
@@ -13,5 +14,6 @@ client_params = {
 }
 if PROXY:
     client_params["proxy"] = PROXY
+
 
 bot_client = Client(**client_params) 

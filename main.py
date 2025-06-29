@@ -1,13 +1,13 @@
 import asyncio
 import logging
 import signal
+from pyrogram import idle
 import uvloop
 from logging.handlers import TimedRotatingFileHandler
 from bot.main import bot_service
 from user_clients.manager import user_client_manager
 from database.manager import db_client
-
-uvloop.install()
+from config import LOG_LEVEL
 
 # Setup logging with rotation
 log_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -23,15 +23,17 @@ file_handler.setFormatter(log_formatter)
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(log_formatter)
 
-# Configure root logger
+# Configure root logger with log level from environment variable
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
+root_logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
 root_logger.addHandler(file_handler)
 root_logger.addHandler(stream_handler)
 
 logging.getLogger("pyrogram").setLevel(logging.INFO)  # Reduce pyrogram's verbosity
 LOGGER = logging.getLogger(__name__)
 
+# Log the current log level being used
+LOGGER.info(f"Application starting with log level: {LOG_LEVEL}")
 
 async def main():
     """
@@ -47,7 +49,7 @@ async def main():
         )
         LOGGER.info("All services are running. Press Ctrl+C to stop.")
         # Keep the main coroutine alive to handle signals
-        await asyncio.Event().wait()
+        await idle()
     except asyncio.CancelledError:
         LOGGER.info("Main task cancelled during shutdown.")
     except Exception as e:
@@ -97,6 +99,7 @@ if __name__ == "__main__":
 
     try:
         LOGGER.info("Application starting up.")
+        uvloop.install()
         loop.run_until_complete(main())
     except (KeyboardInterrupt, asyncio.CancelledError):
         LOGGER.info("Application shutdown request received.")

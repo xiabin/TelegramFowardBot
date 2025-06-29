@@ -8,7 +8,7 @@ from pyrogram.errors import (
     SessionPasswordNeeded,
     PasswordHashInvalid,
 )
-from config import API_ID, API_HASH, OWNER_ID
+from config import API_ID, API_HASH, OWNER_ID, PROXY
 from database.manager import add_managed_user
 from user_clients.manager import user_client_manager
 from ..app import bot_client
@@ -21,24 +21,24 @@ user_auth_sessions = {}
 # Custom filter for the owner
 owner_only = filters.private 
 
-@bot_client.on_message(filters.command("adduser") & owner_only)
+@Client.on_message(filters.command("adduser") & owner_only)
 async def adduser_command(client: Client, message: Message):
     """Starts the process of adding a new managed user."""
     logger.info(f"Received /adduser command from owner {message.from_user.id}")
     
     admin_id = message.from_user.id
     if admin_id in user_auth_sessions:
-        await message.reply("You are already in the middle of an add-user process. Send /cancel to stop.")
+        await message.reply("您已经在添加用户流程中。发送 /cancel 以取消当前操作。")
         return
 
     user_auth_sessions[admin_id] = {"step": "phone"}
     await message.reply(
-        "Starting the process to add a new managed user...\n\n"
-        "**Step 1:** Please provide the phone number for the account (e.g., +1234567890).\n\n"
-        "Send /cancel at any time to stop."
+        "开始添加新托管用户流程...\n\n"
+        "**步骤 1：** 请输入要添加账号的手机号（如：+861234567890）。\n\n"
+        "随时发送 /cancel 以取消操作。"
     )
 
-@bot_client.on_message(filters.command("cancel") & owner_only)
+@Client.on_message(filters.command("cancel") & owner_only)
 async def cancel_command(client: Client, message: Message):
     """Cancels the current operation."""
     admin_id = message.from_user.id
@@ -47,11 +47,11 @@ async def cancel_command(client: Client, message: Message):
         temp_client = session_data.get("client")
         if temp_client and temp_client.is_connected:
             await temp_client.disconnect()
-        await message.reply("Operation cancelled.")
+        await message.reply("操作已取消。")
     else:
-        await message.reply("No active operation to cancel.")
+        await message.reply("当前没有正在进行的操作可取消。")
 
-@bot_client.on_message(filters.text & ~filters.command(["adduser", "cancel"]) & owner_only)
+@Client.on_message(filters.text & ~filters.command(["adduser", "cancel"]) & owner_only)
 async def conversation_handler(client: Client, message: Message):
     """Handles the conversation for adding a user."""
     admin_id = message.from_user.id
@@ -70,12 +70,25 @@ async def conversation_handler(client: Client, message: Message):
             await process_password_step(message, session_data)
     except Exception as e:
         logger.error(f"Error during user add process for admin {admin_id}: {e}", exc_info=True)
-        await message.reply(f"An unexpected error occurred: {e}.\nPlease try again or /cancel.")
+        await message.reply(f"发生意外错误：{e}。\n请重试或发送 /cancel 取消操作。")
         user_auth_sessions.pop(admin_id, None)
 
 async def process_phone_step(message: Message, session_data: dict):
     phone_number = message.text
-    temp_client = Client(f"temp_{message.from_user.id}", API_ID, API_HASH, in_memory=True)
+    
+    # Prepare client parameters with proxy support
+    client_params = {
+        "name": f"temp_{message.from_user.id}",
+        "api_id": API_ID,
+        "api_hash": API_HASH,
+        "in_memory": True
+    }
+    
+    if PROXY:
+        client_params["proxy"] = PROXY
+        logger.info(f"Using proxy configuration for temporary client: {PROXY['hostname']}:{PROXY['port']}")
+    
+    temp_client = Client(**client_params)
     await temp_client.connect()
     
     sent_code = await temp_client.send_code(phone_number)
@@ -86,7 +99,7 @@ async def process_phone_step(message: Message, session_data: dict):
         "phone_code_hash": sent_code.phone_code_hash,
         "client": temp_client
     })
-    await message.reply("**Step 2:** Verification code sent. Please provide the code.")
+    await message.reply("**步骤 2：** 验证码已发送，请输入收到的验证码。")
 
 async def process_code_step(message: Message, session_data: dict):
     code = message.text
@@ -96,9 +109,9 @@ async def process_code_step(message: Message, session_data: dict):
         await finalize_session(message, session_data)
     except SessionPasswordNeeded:
         session_data["step"] = "password"
-        await message.reply("**Step 3:** Two-step verification is enabled. Please provide your password.")
+        await message.reply("**步骤 3：** 该账号已开启两步验证，请输入密码。")
     except (PhoneCodeInvalid, PhoneCodeExpired):
-        await message.reply("Invalid or expired code. Please try again or send /cancel.")
+        await message.reply("验证码无效或已过期，请重试或发送 /cancel 取消操作。")
 
 async def process_password_step(message: Message, session_data: dict):
     password = message.text
@@ -107,7 +120,7 @@ async def process_password_step(message: Message, session_data: dict):
         await temp_client.check_password(password)
         await finalize_session(message, session_data)
     except PasswordHashInvalid:
-        await message.reply("Invalid password. Please try again or send /cancel.")
+        await message.reply("密码错误，请重试或发送 /cancel 取消操作。")
 
 async def finalize_session(message: Message, session_data: dict):
     """Finalizes the session, saves it, and starts the client immediately."""
@@ -119,23 +132,17 @@ async def finalize_session(message: Message, session_data: dict):
     
     # 1. Save the user to the database
     await add_managed_user(new_user_me.id, session_string)
-    await message.reply(f"✅ User `{new_user_me.id}` ({new_user_me.first_name}) saved to database.")
+    await message.reply(f"✅ 用户 `{new_user_me.id}`（{new_user_me.first_name}）已保存到数据库。")
 
     # 2. Start the user client instance immediately
-    await message.reply(f"🚀 Starting client for `{new_user_me.id}`...")
+    await message.reply(f"🚀 正在启动 `{new_user_me.id}` 的客户端...")
     success = await user_client_manager.start_client(new_user_me.id, session_string)
 
     if success:
-        await message.reply(f"✅ Client for `{new_user_me.id}` started successfully!")
+        await message.reply(f"✅ `{new_user_me.id}` 的客户端启动成功！")
     else:
-        await message.reply(f"❌ Failed to start client for `{new_user_me.id}`. Check logs for details.")
+        await message.reply(f"❌ `{new_user_me.id}` 的客户端启动失败，请查看日志获取详情。")
 
     # Clean up the session
     user_auth_sessions.pop(message.from_user.id, None)
 
-# This handler will catch any message that wasn't handled by other handlers in this file
-@bot_client.on_message(owner_only, group=1)
-async def unhandled_message_handler(client: Client, message: Message):
-    """Replies to any unhandled message from the owner."""
-    logger.info(f"Received an unhandled message from owner {message.from_user.id}")
-    await message.reply("I received your message, but I'm not sure what you want me to do.")

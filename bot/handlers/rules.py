@@ -9,27 +9,23 @@ from database.manager import (
     delete_forwarding_rule,
     get_user_by_id,
 )
-from ..app import bot_client
-from ..app import bot_client
 
 logger = logging.getLogger(__name__)
 
 # Command Filters
 owner_only = filters.private & filters.user(OWNER_ID)
 
-@bot_client.on_message(filters.command("addrule") & owner_only)
+@Client.on_message(filters.command("addrule") & owner_only)
 async def addrule_command(client: Client, message: Message):
     """
-    Adds a forwarding rule for a managed user using a JSON object.
-    Usage: /addrule <managed_user_id> { "source_chats": [...], "destination_chats": [...] }
-    Example: /addrule 12345 { "source_chats": [-100123], "destination_chats": [-100456] }
+    为托管用户添加一个转发规则，使用JSON对象格式。
+    用法: /addrule <托管用户ID> { "source_chats": [...], "destination_chats": [...] }
+    示例: /addrule 12345 { "source_chats": [-100123], "destination_chats": [-100456] }
     """
     if len(message.command) < 3:
         await message.reply(
-            "<b>Usage:</b> <code>/addrule &lt;user_id&gt; &lt;json_config&gt;</code>\n\n"
-            "<b>Example:</b>\n"
-            "<code>/addrule 1234567 "
-            '{"source_chats": [-100123456], "destination_chats": [-100789012]}</code>'
+            "用法: /addrule <托管用户ID> { \"source_chats\": [...], \"destination_chats\": [...] }\n\n"
+            "示例: /addrule 12345 { \"source_chats\": [-100123], \"destination_chats\": [-100456] }"
         )
         return
 
@@ -40,84 +36,84 @@ async def addrule_command(client: Client, message: Message):
 
         # Basic validation of the config
         if 'source_chats' not in rule_config or 'destination_chats' not in rule_config:
-            await message.reply("JSON config must include 'source_chats' and 'destination_chats' keys.")
+            await message.reply("JSON配置必须包含 'source_chats' 和 'destination_chats' 键。")
             return
         if not isinstance(rule_config['source_chats'], list) or not isinstance(rule_config['destination_chats'], list):
-            await message.reply("'source_chats' and 'destination_chats' must be lists of chat IDs.")
+            await message.reply("'source_chats' 和 'destination_chats' 必须是聊天ID的列表。")
             return
 
         if not await get_user_by_id(user_id):
-            await message.reply(f"No managed user found with ID `{user_id}`.")
+            await message.reply(f"未找到ID为 `{user_id}` 的托管用户。")
             return
 
         rule = await add_forwarding_rule(user_id, rule_config)
         await message.reply(
-            f"✅ Rule added successfully for user `{user_id}`.\n"
-            f"<b>Rule ID:</b> <code>{rule['_id']}</code>"
+            f"✅ 用户 `{user_id}` 的转发规则已成功添加。\n"
+            f"<b>规则ID:</b> <code>{rule['_id']}</code>"
         )
 
     except ValueError:
-        await message.reply("Invalid User ID. It must be an integer.")
+        await message.reply("无效的用户ID。它必须是整数。")
     except json.JSONDecodeError:
-        await message.reply("Invalid JSON provided. Please check the format.")
+        await message.reply("无效的JSON提供。请检查格式。")
     except Exception as e:
         logger.error(f"Error in addrule_command: {e}", exc_info=True)
-        await message.reply(f"An error occurred: {e}")
+        await message.reply(f"发生错误: {e}")
 
-@bot_client.on_message(filters.command("listrules") & owner_only)
+@Client.on_message(filters.command("listrules") & owner_only)
 async def listrules_command(client: Client, message: Message):
     """
-    Lists all forwarding rules for a specific managed user.
-    Usage: /listrules <managed_user_id>
+    列出特定托管用户的所有转发规则。
+    用法: /listrules <托管用户ID>
     """
     if len(message.command) < 2:
-        await message.reply("Usage: /listrules <managed_user_id>")
+        await message.reply("用法: /listrules <托管用户ID>")
         return
 
     try:
         user_id = int(message.command[1])
         if not await get_user_by_id(user_id):
-            await message.reply(f"No managed user found with ID `{user_id}`.")
+            await message.reply(f"未找到ID为 `{user_id}` 的托管用户。")
             return
             
         rules = await get_forwarding_rules_for_user(user_id)
         if not rules:
-            await message.reply(f"No forwarding rules found for user `{user_id}`.")
+            await message.reply(f"未找到用户 `{user_id}` 的转发规则。")
             return
 
-        response = f"<b>Forwarding rules for user `{user_id}`:</b>\n\n"
+        response = f"<b>用户 `{user_id}` 的转发规则:</b>\n\n" 
         for rule in rules:
             sources = ", ".join(map(str, rule.get('source_chats', [])))
             dests = ", ".join(map(str, rule.get('destination_chats', [])))
             response += (
-                f"<b>Rule ID:</b> <code>{rule['_id']}</code>\n"
-                f"  <b>From:</b> <code>{sources if sources else 'Any Chat'}</code>\n"
-                f"  <b>To:</b> <code>{dests}</code>\n\n"
+                f"<b>规则ID:</b> <code>{rule['_id']}</code>\n"
+                f"  <b>来源:</b> <code>{sources if sources else 'Any Chat'}</code>\n"
+                f"  <b>目标:</b> <code>{dests}</code>\n\n"
             )
         
         await message.reply(response)
     except ValueError:
-        await message.reply("Invalid User ID provided.")
+        await message.reply("无效的用户ID。它必须是整数。")
     except Exception as e:
         logger.error(f"Error in listrules_command: {e}", exc_info=True)
-        await message.reply(f"An error occurred: {e}")
+        await message.reply(f"发生错误: {e}")
 
-@bot_client.on_message(filters.command("delrule") & owner_only)
+@Client.on_message(filters.command("delrule") & owner_only)
 async def delrule_command(client: Client, message: Message):
     """
-    Deletes a forwarding rule by its unique ID.
-    Usage: /delrule <rule_id>
+    通过其唯一ID删除一个转发规则。
+    用法: /delrule <规则ID>
     """
     if len(message.command) < 2:
-        await message.reply("Usage: /delrule <rule_id>")
+        await message.reply("用法: /delrule <规则ID>")
         return
 
     try:
         rule_id = message.command[1]
         if await delete_forwarding_rule(rule_id):
-            await message.reply(f"✅ Rule <code>{rule_id}</code> has been deleted.")
+            await message.reply(f"✅ 规则 <code>{rule_id}</code> 已删除。")
         else:
-            await message.reply(f"Could not find a rule with ID <code>{rule_id}</code> to delete.")
+            await message.reply(f"无法找到ID为 <code>{rule_id}</code> 的规则。")
     except Exception as e:
         logger.error(f"Error in delrule_command: {e}", exc_info=True)
-        await message.reply(f"An error occurred: {e}")
+        await message.reply(f"发生错误: {e}")

@@ -133,16 +133,16 @@ async def forwarding_handler(client: Client, message: Message):
             if message.mentioned and message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
                 sender = message.from_user.mention if message.from_user else "Someone"
                 notification_text = (
-                    f"🔔 **You were mentioned in {message.chat.title}**\n\n"
-                    f"<b>From:</b> {sender}\n"
-                    f"<b>Message:</b> {message.text or message.caption or '...'}\n\n"
-                    f"(Forwarded for user {user_mention} by TeleFwdBot)"
+                    f"🔔 **您在 {message.chat.title} 被提及**\n\n"
+                    f"<b>来自:</b> {sender}\n"
+                    f"<b>消息内容:</b> {message.text or message.caption or '...'}\n\n"
+                    f"（由 TeleFwdBot 为用户 {user_mention} 转发）"
                 )
                 if message.link:
                     reply_markup = InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(text="💬 View Message", url=message.link)]]
+                        [[InlineKeyboardButton(text="💬 查看消息", url=message.link)]]
                     )
-                # Group mentions are only notified, not forwarded.
+                # 群组提及只通知，不转发。
                 should_forward = False
 
             # 2. Handle other messages
@@ -150,9 +150,9 @@ async def forwarding_handler(client: Client, message: Message):
                 content_type, content_detail, is_media = await _get_message_details(message)
                 source_details = await _get_source_details(message)
                 notification_text = (
-                    f"🔔 New {content_type} from {source_details}\n\n"
+                    f"🔔 新的{content_type} 来自 {source_details}\n\n"
                     f"{content_detail}\n\n"
-                    f"(Forwarded for user {user_mention} by TeleFwdBot)"
+                    f"（由 TeleFwdBot 为用户 {user_mention} 转发）"
                 ).strip()
 
                 # Create a button to jump to the source
@@ -161,7 +161,7 @@ async def forwarding_handler(client: Client, message: Message):
                 if message.chat.type == enums.ChatType.PRIVATE and message.from_user:
                     pass
                 elif message.link:
-                    button_text = "💬 View Message"
+                    button_text = "💬 查看消息"
                     button_url = message.link
                 
                 if button_text and button_url:
