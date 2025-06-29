@@ -10,6 +10,7 @@ Telegram 版本的防撤回
 - **健壮与异步**: 基于 Pyrogram 和 Asyncio 构建，性能卓越。
 - **现代化工具**: 使用 `uv` 和 `pyproject.toml` 进行快速可靠的依赖管理。
 - **日志轮转**: 自动轮转日志文件以节省空间，保留最近3天的日志。
+- **服务管理**: 内置守护进程支持，支持启动/停止/重启功能。
 
 ## 先决条件
 
@@ -26,7 +27,7 @@ Telegram 版本的防撤回
 
 ```bash
 git clone git@github.com:xiabin/TelegramFowardBot.git
-cd TelegramFowardBot
+cd TeleFwdBot
 ```
 
 ### 2. 安装依赖
@@ -79,37 +80,65 @@ MONGO_URI=mongodb://localhost:27017/
 
 ### 4. 运行机器人
 
-您可以通过以下任一方式启动机器人：
+机器人包含服务管理脚本，支持守护进程操作。使用以下命令：
 
-#### 方式一：使用 uv run（推荐）
+#### 服务管理（推荐）
 
+```bash
+# 启动机器人后台服务
+./run.sh start
+
+# 停止机器人服务
+./run.sh stop
+
+# 重启机器人服务
+./run.sh restart
+
+# 检查服务状态
+./run.sh status
+
+# 查看实时日志
+./run.sh logs
+
+# 显示帮助信息
+./run.sh help
+```
+
+#### 其他运行方式
+
+如果您更喜欢直接运行机器人：
+
+**方式一：使用 uv run**
 ```bash
 uv run python main.py
 ```
 
-#### 方式二：直接运行
-
-确保已配置好 .env 文件后，直接运行：
-
+**方式二：直接运行**
 ```bash
 python main.py
 ```
 
-#### 方式三：通过环境变量运行
-
-也可以直接通过命令行传递环境变量（适合容器/云部署）：
-
+**方式三：通过环境变量运行**
 ```bash
 API_ID=1234567 API_HASH=xxx BOT_TOKEN=xxx OWNER_ID=123456 uv run python main.py
 ```
 
-#### 方式四：使用运行脚本
+## 服务管理功能
 
-项目已提供 `run.sh` 脚本，自动加载 .env 并启动主程序：
+`run.sh` 脚本提供完整的守护进程功能：
 
-```bash
-bash run.sh
-```
+- **后台运行**: 使用 `nohup` 作为守护进程运行
+- **进程管理**: 自动 PID 文件管理和进程监控
+- **优雅关闭**: 先发送 SIGTERM 信号，必要时使用 SIGKILL 强制终止
+- **日志管理**: 所有输出重定向到 `logs/bot.log`
+- **状态监控**: 查看进程信息和日志文件大小
+- **实时日志**: 使用 `tail -f` 实时查看日志
+
+### 文件位置
+
+- **PID文件**: `.bot.pid`
+- **日志文件**: `logs/bot.log`
+- **配置文件**: `.env`
 
 ## 使用方法
 

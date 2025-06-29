@@ -1,4 +1,4 @@
-# TeleFwdBot - Telegram Message Forwarding Bot (English)
+# TeleFwdBot - Telegram Message Forwarding Bot
 
 A powerful and extensible Telegram message forwarding bot that allows you to manage multiple user accounts and set up custom forwarding rules. Includes anti-revoke features for Telegram.
 
@@ -9,6 +9,7 @@ A powerful and extensible Telegram message forwarding bot that allows you to man
 - **Robust & Asynchronous**: Built with Pyrogram and Asyncio for excellent performance.
 - **Modern tooling**: Uses `uv` and `pyproject.toml` for fast and reliable dependency management.
 - **Log rotation**: Automatically rotates log files to save space, keeping logs for the last 3 days.
+- **Service management**: Built-in daemon support with start/stop/restart functionality.
 
 ## Prerequisites
 
@@ -25,7 +26,7 @@ Skip this step if you already have the code locally.
 
 ```bash
 git clone git@github.com:xiabin/TelegramFowardBot.git
-cd TelegramFowardBot
+cd TeleFwdBot
 ```
 
 ### 2. Install Dependencies
@@ -78,37 +79,65 @@ MONGO_URI=mongodb://localhost:27017/
 
 ### 4. Run the Bot
 
-You can start the bot using any of the following methods:
+The bot includes a service management script that supports daemon operation. Use the following commands:
 
-#### Method 1: Using uv run (Recommended)
+#### Service Management (Recommended)
 
+```bash
+# Start the bot as a background service
+./run.sh start
+
+# Stop the bot service
+./run.sh stop
+
+# Restart the bot service
+./run.sh restart
+
+# Check service status
+./run.sh status
+
+# View real-time logs
+./run.sh logs
+
+# Show help
+./run.sh help
+```
+
+#### Alternative Methods
+
+If you prefer to run the bot directly:
+
+**Method 1: Using uv run**
 ```bash
 uv run python main.py
 ```
 
-#### Method 2: Direct Execution
-
-Make sure the .env file is configured, then run:
-
+**Method 2: Direct execution**
 ```bash
 python main.py
 ```
 
-#### Method 3: Run with Environment Variables
-
-You can also pass environment variables directly via the command line (useful for container/cloud deployment):
-
+**Method 3: With environment variables**
 ```bash
 API_ID=1234567 API_HASH=xxx BOT_TOKEN=xxx OWNER_ID=123456 uv run python main.py
 ```
 
-#### Method 4: Using the Run Script
+## Service Management Features
 
-A `run.sh` script is provided to automatically load .env and start the main program:
+The `run.sh` script provides full daemon functionality:
 
-```bash
-bash run.sh
-```
+- **Background operation**: Runs as a daemon process using `nohup`
+- **Process management**: Automatic PID file management and process monitoring
+- **Graceful shutdown**: SIGTERM followed by SIGKILL if necessary
+- **Log management**: All output redirected to `logs/bot.log`
+- **Status monitoring**: View process information and log file size
+- **Real-time logging**: Live log viewing with `tail -f`
+
+### File Locations
+
+- **PID file**: `.bot.pid`
+- **Log file**: `logs/bot.log`
+- **Config file**: `.env`
 
 ## Usage
 
