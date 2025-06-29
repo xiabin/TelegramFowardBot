@@ -9,7 +9,8 @@ from database.manager import (
     delete_forwarding_rule,
     get_user_by_id,
 )
-from ..main import bot_client
+from ..app import bot_client
+from ..app import bot_client
 
 logger = logging.getLogger(__name__)
 

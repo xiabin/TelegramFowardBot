@@ -1,7 +1,7 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 # Project Structure Guide
 
@@ -25,6 +25,6 @@ This project is a Telegram forwarding bot.
 ## Pyrogram Specifics
 - Use the `Client` object from `pyrogram` to interact with the Telegram API.
 - Handlers for incoming updates should be decorated with `@Client.on_message()` or other relevant decorators.
-- Refer to the official [Pyrogram documentation](https://docs.pyrogram.org/) for detailed API usage.
+- Refer to the official [Pyrogram documentation](mdc:https:/docs.pyrogram.org) for detailed API usage.
 - Ensure that sensitive information like `api_id` and `api_hash` are loaded from configuration files (e.g., `[config.py](mdc:config.py)`) and not hardcoded.
 - Asynchronous functions should be used for network operations to avoid blocking. `async` and `await` should be used appropriately.

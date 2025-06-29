@@ -3,7 +3,7 @@ from pyrogram import Client, filters, enums
 from pyrogram.handlers import MessageHandler
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from database.manager import get_forwarding_rules_for_user
-from bot.main import bot_client
+from bot.app import bot_client
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,8 @@ from pyrogram.types import Message
 from config import OWNER_ID
 from database.manager import get_all_active_users, deactivate_user
 from user_clients.manager import user_client_manager
-from ..main import bot_client
+from ..app import bot_client
+from ..app import bot_client
 
 # Command Filters
 admins_only = filters.private & filters.user(OWNER_ID)
