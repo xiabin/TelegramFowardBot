@@ -15,76 +15,66 @@ async def _get_message_details(message: Message) -> (str, str, bool):
     """
     Helper function to get a descriptive content type, details, and media status from a message.
     """
-    content_type = "Unknown Message Type"
+    content_type = "未知消息类型"
     content_detail = ""
     is_media = False
 
     if message.text:
-        content_type = "Text Message"
+        content_type = "文本消息"
         content_detail = f"<b>Message:</b> {message.text[:200]}" # Limit length
     elif message.photo:
-        content_type = "Photo"
+        content_type = "图片"
         if message.caption:
             content_detail = f"<b>Caption:</b> {message.caption}"
         is_media = True
     elif message.video_note:
-        content_type = "Video Note"
+        content_type = "圆形视频"
         is_media = True
     elif message.video:
-        content_type = "Video"
+        content_type = "视频"
         if message.video.file_name:
             content_detail = f"<b>File:</b> {message.video.file_name}"
         if message.caption:
             content_detail += f"\n<b>Caption:</b> {message.caption}"
         is_media = True
     elif message.document:
-        content_type = "File"
+        content_type = "文件"
         if message.document.file_name:
             content_detail = f"<b>File:</b> {message.document.file_name}"
         if message.caption:
             content_detail += f"\n<b>Caption:</b> {message.caption}"
         is_media = True
     elif message.audio:
-        content_type = "Audio"
+        content_type = "音频"
         if message.audio.file_name:
             content_detail = f"<b>File:</b> {message.audio.file_name}"
         is_media = True
     elif message.voice:
-        content_type = "Voice Message"
+        content_type = "语音消息"
         is_media = True
     elif message.sticker:
-        content_type = "Sticker"
+        content_type = "贴纸"
         if message.sticker.emoji:
             content_detail = f"<b>Emoji:</b> {message.sticker.emoji}"
         is_media = True
     elif message.animation:
-        content_type = "Animation"
+        content_type = "动画"
         if message.animation.file_name:
             content_detail = f"<b>File:</b> {message.animation.file_name}"
         is_media = True
     elif message.contact:
-        content_type = "Contact"
+        content_type = "联系人"
         content_detail = f"<b>Name:</b> {message.contact.first_name}"
         if message.contact.phone_number:
             content_detail += f"\n<b>Phone:</b> {message.contact.phone_number}"
     elif message.location:
-        content_type = "Location"
+        content_type = "位置"
         content_detail = f"<b>Longitude:</b> {message.location.longitude}\n<b>Latitude:</b> {message.location.latitude}"
     elif message.venue:
-        content_type = "Venue"
+        content_type = "地点"
         content_detail = f"<b>Title:</b> {message.venue.title}\n<b>Address:</b> {message.venue.address}"
     
     return content_type, content_detail.strip(), is_media
-
-async def _get_source_details(message: Message) -> str:
-    """Gets a descriptive string for the source of a message."""
-    if message.chat.type == enums.ChatType.PRIVATE:
-        return f"a private message from {message.from_user.mention}"
-    elif message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return f"the group <b>{message.chat.title}</b>"
-    elif message.chat.type == enums.ChatType.CHANNEL:
-        return f"the channel <b>{message.chat.title}</b>"
-    return "an unknown chat"
 
 async def forwarding_handler(client: Client, message: Message):
     """
@@ -92,7 +82,7 @@ async def forwarding_handler(client: Client, message: Message):
     and forwards the message to the appropriate destinations with rich notifications.
     """
     user_id = client.me.id
-    user_mention = client.me.mention
+    user_mention = message.from_user.mention if message.from_user else "未知"
     source_chat_id = message.chat.id
     logger.info(f"User client {user_id}: Received message {message.id} from chat {source_chat_id}.")
 
@@ -136,7 +126,6 @@ async def forwarding_handler(client: Client, message: Message):
                     f"🔔 **您在 {message.chat.title} 被提及**\n\n"
                     f"<b>来自:</b> {sender}\n"
                     f"<b>消息内容:</b> {message.text or message.caption or '...'}\n\n"
-                    f"（由 TeleFwdBot 为用户 {user_mention} 转发）"
                 )
                 if message.link:
                     reply_markup = InlineKeyboardMarkup(
@@ -148,26 +137,11 @@ async def forwarding_handler(client: Client, message: Message):
             # 2. Handle other messages
             else:
                 content_type, content_detail, is_media = await _get_message_details(message)
-                source_details = await _get_source_details(message)
                 notification_text = (
-                    f"🔔 新的{content_type} 来自 {source_details}\n\n"
+                    f"🔔 新的{content_type} 来自 {user_mention}\n\n"
                     f"{content_detail}\n\n"
-                    f"（由 TeleFwdBot 为用户 {user_mention} 转发）"
                 ).strip()
 
-                # Create a button to jump to the source
-                button_text = None
-                button_url = None
-                if message.chat.type == enums.ChatType.PRIVATE and message.from_user:
-                    pass
-                elif message.link:
-                    button_text = "💬 查看消息"
-                    button_url = message.link
-                
-                if button_text and button_url:
-                    reply_markup = InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(text=button_text, url=button_url)]]
-                    )
                 
                 # Only forward private messages that are media
                 if is_media:
