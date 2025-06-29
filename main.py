@@ -23,13 +23,14 @@ file_handler.setFormatter(log_formatter)
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(log_formatter)
 
+log_level = getattr(logging, LOG_LEVEL, logging.INFO)
 # Configure root logger with log level from environment variable
 root_logger = logging.getLogger()
-root_logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+root_logger.setLevel(log_level)
 root_logger.addHandler(file_handler)
 root_logger.addHandler(stream_handler)
 
-logging.getLogger("pyrogram").setLevel(logging.INFO)  # Reduce pyrogram's verbosity
+logging.getLogger("pyrogram").setLevel(log_level)  # Reduce pyrogram's verbosity
 LOGGER = logging.getLogger(__name__)
 
 # Log the current log level being used
