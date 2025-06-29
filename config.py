@@ -11,6 +11,9 @@ MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "0")) # Optional: for logging to a specific channel
 
+# Log level configuration - default to INFO
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+
 # --- Proxy Configuration ---
 # Example: "socks5://user:pass@host:port" or "http://host:port"
 PROXY_URL = os.environ.get("PROXY_URL")
