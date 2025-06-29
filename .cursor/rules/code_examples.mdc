@@ -1,0 +1,266 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Code Examples and Patterns
+
+## UV Workflow Examples
+
+### Installing and Running
+```bash
+# Install dependencies
+uv sync
+
+# Run the main application
+uv run python main.py
+
+# Add a new dependency
+uv add requests
+
+# Install with development dependencies
+uv sync --extra dev
+```
+
+### Environment Management
+```bash
+# Create and activate virtual environment automatically
+uv sync
+
+# Run scripts in the managed environment
+uv run python -m pytest
+uv run python scripts/migrate.py
+```
+
+## Pyrogram Client Patterns
+
+### Single Client Management
+```python
+from pyrogram import Client
+
+app = Client("my_account")
+
+async def main():
+    async with app:
+        await app.send_message("me", "Hello!")
+
+app.run(main())
+```
+
+### Multiple Client Management (Our Pattern)
+```python
+import asyncio
+from pyrogram import Client
+
+class ClientManager:
+    def __init__(self):
+        self.running_clients = {}
+    
+    async def start_client(self, user_id: int, session_string: str) -> bool:
+        try:
+            client = Client(f"user_{user_id}", session_string=session_string)
+            await client.start()
+            self.running_clients[user_id] = client
+            return True
+        except Exception as e:
+            logger.error(f"Failed to start client {user_id}: {e}")
+            return False
+    
+    async def stop_client(self, user_id: int) -> bool:
+        client = self.running_clients.pop(user_id, None)
+        if client:
+            await client.stop()
+            return True
+        return False
+```
+
+### Handler Registration Patterns
+```python
+# Using decorators (static registration)
+@app.on_message(filters.command("start"))
+async def start_handler(client: Client, message: Message):
+    await message.reply("Welcome!")
+
+# Using add_handler (dynamic registration)
+from pyrogram.handlers import MessageHandler
+
+def register_handlers(client: Client):
+    client.add_handler(MessageHandler(forwarding_handler, FORWARD_FILTER), group=1)
+```
+
+### Error Handling Patterns
+```python
+from pyrogram.errors import FloodWait, PhoneCodeInvalid
+
+async def safe_api_call():
+    try:
+        result = await client.send_message("me", "Hello")
+        return result
+    except FloodWait as e:
+        logger.warning(f"FloodWait: sleeping for {e.value} seconds")
+        await asyncio.sleep(e.value)
+        # Retry the operation
+        return await client.send_message("me", "Hello")
+    except PhoneCodeInvalid:
+        logger.error("Invalid phone code provided")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        raise
+```
+
+## Configuration Patterns
+
+### Environment Variables
+```python
+# config.py
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_ID = int(os.environ.get("API_ID", "0"))
+API_HASH = os.environ.get("API_HASH")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
+
+if not all([API_ID, API_HASH, BOT_TOKEN, OWNER_ID]):
+    raise ValueError("Missing essential environment variables")
+```
+
+### .env File Structure
+```ini
+# Required
+API_ID=1234567
+API_HASH=your_api_hash
+BOT_TOKEN=your_bot_token
+OWNER_ID=your_user_id
+
+# Database
+MONGO_URI=mongodb://localhost:27017/
+
+# Optional
+LOG_CHANNEL=-1001234567890
+PROXY_URL=socks5://user:pass@host:port
+```
+
+## Async Patterns
+
+### Concurrent Operations
+```python
+import asyncio
+
+async def start_services():
+    await asyncio.gather(
+        bot_service.start(),
+        user_client_manager.start_all_from_db(),
+        database_manager.connect()
+    )
+```
+
+### Graceful Shutdown
+```python
+import signal
+
+async def shutdown(sig):
+    logger.info(f"Received signal {sig.name}")
+    
+    # Cancel all tasks
+    tasks = [task for task in asyncio.all_tasks() 
+             if task is not asyncio.current_task()]
+    
+    for task in tasks:
+        task.cancel()
+    
+    await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Cleanup resources
+    await user_client_manager.stop_all()
+    await bot_service.stop()
+
+# Register signal handlers
+loop = asyncio.get_event_loop()
+for sig in (signal.SIGINT, signal.SIGTERM):
+    loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown(s)))
+```
+
+## Database Patterns
+
+### Async MongoDB Operations
+```python
+from motor.motor_asyncio import AsyncIOMotorClient
+
+class DatabaseManager:
+    def __init__(self, uri: str):
+        self.client = AsyncIOMotorClient(uri)
+        self.db = self.client.get_database("telebot")
+        self.users = self.db.get_collection("users")
+    
+    async def add_user(self, user_id: int, session_string: str):
+        await self.users.insert_one({
+            "user_id": user_id,
+            "session_string": session_string,
+            "is_active": True,
+            "created_at": datetime.utcnow()
+        })
+    
+    async def get_active_users(self):
+        return await self.users.find({"is_active": True}).to_list(length=None)
+```
+
+## Logging Patterns
+
+### Structured Logging
+```python
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
+def setup_logging():
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    
+    # File handler with rotation
+    file_handler = TimedRotatingFileHandler(
+        "logs/app.log", when="midnight", interval=1, backupCount=3
+    )
+    file_handler.setFormatter(formatter)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    
+    # Root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+```
+
+## Type Hints Patterns
+
+### Function Signatures
+```python
+from typing import Dict, List, Optional, Any
+from pyrogram import Client
+from pyrogram.types import Message
+
+async def add_forwarding_rule(
+    user_id: int, 
+    rule_config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Add a forwarding rule for a user."""
+    pass
+
+async def get_forwarding_rules_for_user(
+    user_id: int
+) -> List[Dict[str, Any]]:
+    """Get all forwarding rules for a user."""
+    pass
+
+async def message_handler(
+    client: Client, 
+    message: Message
+) -> None:
+    """Handle incoming messages."""
+    pass

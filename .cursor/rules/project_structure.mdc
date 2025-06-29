@@ -14,17 +14,58 @@ This project is a Telegram forwarding bot.
 - Database interactions are managed by `[database/manager.py](mdc:database/manager.py)`.
 - Configuration is stored in `[config.py](mdc:config.py)`.
 
+# UV Package Management Best Practices
+
+## Dependency Management
+- Use `uv sync` to install dependencies from `[pyproject.toml](mdc:pyproject.toml)` instead of manual pip commands.
+- Run `uv sync --extra dev` to install development dependencies.
+- Use `uv run python main.py` to execute the main program within the managed environment.
+- Leverage `[uv.lock](mdc:uv.lock)` for reproducible builds and exact version pinning.
+
+## Project Workflow
+- Always use `uv sync` after cloning or when dependencies change.
+- Use `uv add <package>` to add new dependencies to the project.
+- Use `uv remove <package>` to remove dependencies.
+- Run scripts with `uv run` to ensure they execute in the correct environment.
+
 # Python and Pyrogram Development Guidelines
 
 ## General Python Style
 - Follow PEP 8 style guidelines for Python code.
-- Use type hints for function signatures.
+- Use type hints for function signatures and return types.
 - Keep functions small and focused on a single task.
 - Use f-strings for string formatting.
+- Use `async/await` consistently for all I/O operations.
+- Implement proper error handling with try/except blocks.
 
 ## Pyrogram Specifics
 - Use the `Client` object from `pyrogram` to interact with the Telegram API.
 - Handlers for incoming updates should be decorated with `@Client.on_message()` or other relevant decorators.
-- Refer to the official [Pyrogram documentation](mdc:https:/docs.pyrogram.org) for detailed API usage.
+- Refer to the official [Pyrogram documentation](mdc:https://docs.pyrogram.org) for detailed API usage.
 - Ensure that sensitive information like `api_id` and `api_hash` are loaded from configuration files (e.g., `[config.py](mdc:config.py)`) and not hardcoded.
 - Asynchronous functions should be used for network operations to avoid blocking. `async` and `await` should be used appropriately.
+
+## Pyrogram Client Management
+- Use `async with client:` context manager for automatic client lifecycle management.
+- For multiple clients, use explicit `await client.start()` and `await client.stop()` calls.
+- Handle FloodWait exceptions properly with `asyncio.sleep(e.value)`.
+- Use handler groups to control message processing order when needed.
+- Register handlers programmatically with `client.add_handler()` for dynamic handler management.
+
+## Async Best Practices
+- Use `asyncio.gather()` for concurrent operations when possible.
+- Implement proper shutdown handling with signal handlers.
+- Use `uvloop` for performance improvements in production.
+- Handle cancellation with proper cleanup in finally blocks.
+
+## Error Handling
+- Always handle Pyrogram-specific exceptions like `FloodWait`, `PhoneCodeInvalid`, etc.
+- Use structured logging with appropriate log levels.
+- Implement graceful degradation for network issues.
+- Log errors with context information for debugging.
+
+## Security
+- Store sensitive data in environment variables or `.env` files.
+- Never commit session strings or API credentials to version control.
+- Use proper session management for user clients.
+- Validate user inputs before processing.

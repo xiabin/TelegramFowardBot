@@ -28,40 +28,26 @@ git clone <your-repository-url>
 cd TeleFwdBot
 ```
 
-### 2. 创建并激活虚拟环境
+### 2. 安装依赖
 
-本项目使用 `uv` 管理虚拟环境和依赖项。
-
-首先，创建虚拟环境。此命令将在您的项目文件夹中创建一个 `.venv` 目录。
+使用 `uv sync` 命令自动创建虚拟环境并从 `pyproject.toml` 安装所有依赖：
 
 ```bash
-uv venv
+uv sync
 ```
 
-接下来，激活虚拟环境。
+这将自动：
+- 创建虚拟环境（如果不存在）
+- 安装 `pyproject.toml` 中定义的所有依赖
+- 生成或更新 `uv.lock` 文件以锁定依赖版本
 
-**在 macOS 和 Linux 上:**
-```bash
-source .venv/bin/activate
-```
-
-**在 Windows 上:**
-```bash
-.venv\Scripts\activate
-```
-
-您的终端提示符现在应以 `(.venv)` 开头，表示虚拟环境已激活。
-
-### 3. 安装依赖
-
-在虚拟环境激活状态下，`uv` 可以直接从 `pyproject.toml` 文件中安装所有必需的包。
+如需安装开发依赖，可以使用：
 
 ```bash
-uv pip install -e .
+uv sync --extra dev
 ```
-*(注意: 使用 `-e .` 会以"可编辑"模式安装项目，这在开发中是很好的实践。)*
 
-### 4. 配置环境变量
+### 3. 配置环境变量
 
 机器人通过 `.env` 文件进行配置。请在项目根目录中创建名为 `.env` 的文件，并添加以下内容。请将占位符值替换为您的实际凭据。
 
@@ -78,24 +64,51 @@ MONGO_URI=mongodb://localhost:27017/
 # 可选: 用于将严重错误记录到指定频道
 # LOG_CHANNEL=-1001234567890
 
-# 可选: 代理配置
-# USE_PROXY=True
-# HTTP_PROXY=http://your_proxy_address:port
+# 可选: 日志等级设置 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+# LOG_LEVEL=INFO
+
+# 可选: 代理配置 (适用于所有客户端，包括机器人、用户客户端和临时认证客户端)
+# PROXY_URL=socks5://user:pass@host:port
+# PROXY_URL=http://proxy_host:port
 ```
 
 - `API_ID` 和 `API_HASH`: 从 [my.telegram.org](https://my.telegram.org) 获取。
 - `BOT_TOKEN`: 通过在 Telegram 上与 [@BotFather](https://t.me/BotFather) 创建一个新机器人来获取。
 - `OWNER_ID`: 您的个人 Telegram 用户 ID。您可以从 [@userinfobot](https://t.me/userinfobot) 等机器人处获取。
 
-### 5. 运行机器人
+### 4. 运行机器人
 
-现在您已准备好启动应用程序。
+您可以通过以下任一方式启动机器人：
+
+#### 方式一：使用 uv run（推荐）
+
+```bash
+uv run python main.py
+```
+
+#### 方式二：直接运行
+
+确保已配置好 .env 文件后，直接运行：
 
 ```bash
 python main.py
 ```
 
-机器人将会启动，连接到 Telegram，并初始化数据库中找到的所有被管理的用户客户端。
+#### 方式三：通过环境变量运行
+
+也可以直接通过命令行传递环境变量（适合容器/云部署）：
+
+```bash
+API_ID=1234567 API_HASH=xxx BOT_TOKEN=xxx OWNER_ID=123456 uv run python main.py
+```
+
+#### 方式四：使用运行脚本
+
+项目已提供 `run.sh` 脚本，自动加载 .env 并启动主程序：
+
+```bash
+bash run.sh
+```
 
 ## 使用方法
 
