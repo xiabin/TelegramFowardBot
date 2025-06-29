@@ -153,6 +153,7 @@ async def forwarding_handler(client: Client, message: Message):
                 text=notification_text,
                 reply_markup=reply_markup,
                 disable_web_page_preview=True,
+                parse_mode=enums.ParseMode.HTML,
             )
 
             # Then, forward the original message(s) if needed
@@ -164,6 +165,7 @@ async def forwarding_handler(client: Client, message: Message):
                         text=f"✅ 以上是转发的{content_type}",
                         reply_markup=reply_markup,
                         disable_web_page_preview=True,
+                        parse_mode=enums.ParseMode.HTML,
                     )
                 logger.info(f"User client {user_id}: Successfully forwarded message {message.id} to {dest_chat}.")
             else:
