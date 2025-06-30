@@ -33,8 +33,10 @@ async def adduser_command(client: Client, message: Message):
 
     user_auth_sessions[admin_id] = {"step": "phone"}
     await message.reply(
-        "开始添加新托管用户流程...\n\n"
-        "**步骤 1：** 请输入要添加账号的手机号（如：+861234567890）。\n\n"
+        "🚀 开始添加新托管用户流程...\n\n"
+        "**步骤 1：** 请输入要添加账号的手机号\n"
+        "📝 **格式：** 包含国际区号，如：`+861234567890`\n\n"
+        "💡 **提示：** 后续验证码需要用空格隔开输入以符合安全要求\n\n"
         "随时发送 /cancel 以取消操作。"
     )
 
@@ -99,19 +101,43 @@ async def process_phone_step(message: Message, session_data: dict):
         "phone_code_hash": sent_code.phone_code_hash,
         "client": temp_client
     })
-    await message.reply("**步骤 2：** 验证码已发送，请输入收到的验证码。")
+    await message.reply(
+        "**步骤 2：** 验证码已发送到您的手机，请输入收到的验证码。\n\n"
+        "⚠️ **重要提示：** 请将验证码中的每个数字用空格隔开输入。\n"
+        "📝 **示例：** 如果收到验证码 `12345`，请输入：`1 2 3 4 5`\n\n"
+        "这是 Telegram 的安全要求，有助于防止自动化攻击。"
+    )
 
 async def process_code_step(message: Message, session_data: dict):
-    code = message.text
+    # 处理带空格的验证码输入，移除所有空格
+    code = message.text.replace(" ", "")
+    
+    # 验证码格式检查
+    if not code.isdigit() or len(code) != 5:
+        await message.reply(
+            "❌ 验证码格式不正确。\n\n"
+            "请确保输入5位数字的验证码，每个数字用空格隔开。\n"
+            "📝 **示例：** `1 2 3 4 5`"
+        )
+        return
+    
     temp_client = session_data["client"]
     try:
         await temp_client.sign_in(session_data["phone"], session_data["phone_code_hash"], code)
         await finalize_session(message, session_data)
     except SessionPasswordNeeded:
         session_data["step"] = "password"
-        await message.reply("**步骤 3：** 该账号已开启两步验证，请输入密码。")
+        await message.reply(
+            "**步骤 3：** 该账号已开启两步验证，请输入密码。\n\n"
+            "🔐 请输入您的两步验证密码（Cloud Password）。\n"
+            "⚠️ 密码输入错误过多可能导致账号暂时锁定。"
+        )
     except (PhoneCodeInvalid, PhoneCodeExpired):
-        await message.reply("验证码无效或已过期，请重试或发送 /cancel 取消操作。")
+        await message.reply(
+            "❌ 验证码无效或已过期。\n\n"
+            "请检查验证码是否正确，或重新开始添加用户流程。\n"
+            "发送 /cancel 取消当前操作，然后重新发送 /adduser 开始。"
+        )
 
 async def process_password_step(message: Message, session_data: dict):
     password = message.text
